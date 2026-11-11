@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial;
+        padding: 15px;
+      }
+
+      input, select, button {
+        width: 100%;
+        margin-top: 8px;
+        margin-bottom: 15px;
+        padding: 8px;
+        font-size: 14px;
+      }
+
+      button {
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #1565c0;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <h3>Gestión SAT</h3>
+
+    <label>Número de SAT</label>
+    <input type="text" id="sat">
+
+    <label>Estado</label>
+    <select id="estado">
+      <option>Pendiente</option>
+      <option>Enviado</option>
+      <option>Recibido</option>
+      <option>Avisado</option>
+      <option>Entregado</option>
+    </select>
+
+    <button id="btnActualizar">Actualizar estado</button>
+
+    <script>
+
+      document.getElementById("btnActualizar").addEventListener("click", function() {
+
+        const sat = document.getElementById("sat").value.trim();
+        const estado = document.getElementById("estado").value;
+
+        if (!sat) {
+          alert("Introduce un número de SAT");
+          return;
+        }
+
+        // 🔍 PRIMERA LLAMADA: detectar sección
+        google.script.run
+          .withSuccessHandler(function(seccion) {
+
+            if (!seccion) {
+              alert("SAT no encontrado");
+              return;
+            }
+
+            const mensaje = `¿Estás seguro de cambiar el estado del SAT "${sat}" (${seccion}) a "${estado}"?`;
+
+            if (confirm(mensaje)) {
+
+              // 🔧 SEGUNDA LLAMADA: actualizar estado
+              google.script.run
+                .withSuccessHandler(function(resultado) {
+
+                  if (resultado) {
+                    alert("Estado actualizado correctamente");
+                  } else {
+                    alert("No se pudo actualizar el SAT");
+                  }
+
+                })
+                .actualizarEstadoSAT(sat, estado);
+            }
+
+          })
+          .withFailureHandler(function(error) {
+            alert("Error de conexión con el sistema: " + error.message);
+          })
+          .obtenerSeccionPorSAT(sat);
+
+      });
+
+    </script>
+
+  </body>
+</html>
