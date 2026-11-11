@@ -1,42 +1,94 @@
-# SAT Workflow Automation & CRM Engine
+# 🛠️ SAT Workflow Automation & CRM Engine
 
-Sistema de automatización y gestión de incidencias de Servicio de Asistencia Técnica (SAT) desarrollado en **Google Apps Script (JavaScript)** para optimizar la trazabilidad de reparaciones y comunicaciones con proveedores en retail.
-
----
-
-## 🎯 Problema a Resolver
-
-La gestión manual de partes de servicio técnico en múltiples secciones (herramientas, ferretería, fontanería, electricidad) provocaba:
-* Dispersión de información entre formularios y bandejas de correo individuales.
-* Errores en la selección de proveedores y formularios de tramitación.
-* Falta de seguimiento temporal en garantías y reparaciones estancadas.
+Sistema de gestión interna y automatización de incidencias técnicas (SAT) multidepartamental desarrollado en **Google Apps Script** y **JavaScript/HTML5**. Conecta formularios de captura, bases de datos en hojas de cálculo, almacenamiento en la nube y correo transaccional, integrando además una interfaz modal interactiva para los operadores de tienda.
 
 ---
 
-## ⚙️ Arquitectura y Funcionalidades
+## 🎯 Problema de Negocio Resuelto
 
-1. **Enrutamiento Automático Multidepartamental:**
-   * Ingesta automática mediante triggers de formulario (`onFormSubmit`).
-   * Creación dinámica de bases de datos por sección y prevención de duplicados por número de SAT.
+En entornos de gran distribución retail, la tramitación manual de garantías y reparaciones técnicas presenta puntos críticos:
+* Dispersión de partes entre formularios desconectados y bandejas de entrada individuales.
+* Errores en la asignación de canales de comunicación según el proveedor o tipo de garantía.
+* Pérdida de trazabilidad temporal y demoras excesivas en equipos enviados a fábrica.
 
-2. **Gestión Transaccional de Correos y Adjuntos:**
-   * Localización relacional del proveedor y sus correos de contacto.
-   * Extracción de tickets y fotografías de placas técnicas desde Google Drive en formato binario (`Blob`) para enviarlos como adjuntos reales.
-   * Paginación en copia (`CC`) a toda la plantilla de la sección para visibilidad compartida.
-
-3. **Manejo de Excepciones Operativas:**
-   * Detección de proveedores que requieren portal externo ("formulario especial") o carecen de correo, enviando una alerta inmediata al solicitante con instrucciones de actuación.
-
-4. **Auditoría de Estados y Marcas Temporales:**
-   * Trazabilidad de estados: `Pendiente`, `Enviado`, `Recibido`, `Avisado` y `Entregado`.
-   * Estampado automático de fechas de salida y retorno al cambiar de estado.
-
-5. **Monitorización Preventiva (SLA):**
-   * Cron job (`verificarSATsPendientes`) que analiza registros diarios y alerta por correo exclusivamente a responsables (Jefes de Sector / Mandos) sobre equipos con más de 20 días sin resolución.
+Esta herramienta centraliza la operativa en una arquitectura unificada que automatiza el enrutado, la comunicación externa e interna y la auditoría de plazos.
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## 🏗️ Arquitectura del Sistema
 
-* **Lenguaje:** JavaScript (Google Apps Script).
-* **Servicios Google Workspace:** SpreadsheetApp, GmailApp, DriveApp, HtmlService.
+El proyecto implementa una arquitectura desacoplada cliente-servidor:
+
+```text
+┌────────────────────────────────────────────────────────┐
+│                        FRONTEND                        │
+│   formulario.html (HTML5, CSS3, DOM Events)            │
+│   - Diálogo modal embebido en Google Sheets            │
+│   - Captura y saneamiento de entradas                  │
+└───────────────────────────┬────────────────────────────┘
+                            │
+              google.script.run (RPC Asíncrono)
+              [withSuccessHandler / withFailureHandler]
+                            │
+┌───────────────────────────▼────────────────────────────┐
+│                        BACKEND                         │
+│   Code.js (Google Apps Script Engine)                  │
+│   - Enrutador por departamento                         │
+│   - Procesador binario de adjuntos (Google Drive)      │
+│   - Motor de mailing transaccional (Gmail API)         │
+│   - Cron Job de auditoría SLA                          │
+└────────────────────────────────────────────────────────┘
+```
+
+---
+
+## ⚙️ Funcionalidades Clave
+
+### 1. Ingesta y enrutamiento departamental (`onFormSubmit`)
+* Captura respuestas del formulario madre y las copia a la hoja de su sección (*Herramientas, Ferretería, Fontanería o Electricidad*).
+* Verificación de duplicados para evitar registros redundantes de un mismo número de SAT.
+* Inicialización de trazabilidad en estado `Pendiente`.
+
+### 2. Notificaciones transaccionales inteligentes
+* **Resolución relacional:** Cruza el proveedor seleccionado con la base de datos de contactos técnicos.
+* **Gestión de incidencias operativas:** Si el proveedor requiere plataforma externa (*formulario especial*) o carece de email, notifica de inmediato al solicitante con instrucciones de actuación.
+* **Tratamiento de adjuntos en memoria:** Extrae tickets de compra y fotografías de placas técnicas desde Google Drive y los convierte en objetos binarios (`Blob`) para enviarlos como archivos adjuntos reales por correo.
+* **Difusión interna:** Envía el correo al servicio técnico oficial y copia automáticamente en `CC` a todos los colaboradores de la sección.
+
+### 3. Interfaz de usuario y llamadas asíncronas (UI/Modal)
+* Formulario modal integrado en la hoja mediante `HtmlService`.
+* **Flujo en dos pasos con confirmación interactiva:**
+  1. Consulta asíncrona al servidor para identificar la sección del SAT (`obtenerSeccionPorSAT`).
+  2. Confirmación visual con el usuario antes de persistir los cambios.
+  3. Ejecución de la actualización (`actualizarEstadoSAT`).
+* Manejo estructurado de respuestas con `.withSuccessHandler()` y control de fallos con `.withFailureHandler()`.
+
+### 4. Ciclo de vida y auditoría de tiempos (SLA)
+* **Marcas temporales automáticas:** Registra la *Fecha de salida* al pasar a `Enviado` y la *Fecha de retorno* al pasar a `Recibido` o `Entregado`.
+* **Monitorización preventiva (+20 días):** Tarea programada (`verificarSATsPendientes`) que analiza incidencias abiertas, calcula los días transcurridos y escala alertas automáticas por correo exclusivamente a los mandos responsables (`JS` / `RC`).
+
+---
+
+## 📁 Estructura del Repositorio
+
+```text
+sat-workflow-automation/
+├── .gitignore
+├── LICENSE
+├── README.md
+└── src/
+    ├── Code.js            # Lógica de backend, triggers y APIs de Google
+    └── formulario.html    # Frontend del modal de control de estados
+```
+
+---
+
+## 💻 Stack Tecnológico
+
+* **Lenguajes:** JavaScript (ES6+), HTML5, CSS3.
+* **Plataforma:** Google Apps Script.
+* **Servicios e integraciones:**
+  * `SpreadsheetApp` (Bases de datos tabulares y control transaccional).
+  * `GmailApp` (Mailing transaccional dinámico con CC y adjuntos).
+  * `DriveApp` (Extracción y parseo de archivos binarios).
+  * `HtmlService` (Renderizado de interfaces modales interactivas).
